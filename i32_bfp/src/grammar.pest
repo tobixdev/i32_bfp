@@ -1,0 +1,8 @@
+action = { function_def }
+
+function_def = { ID ~ "(" ~ ")" ~ ":=" ~ expr }
+
+expr = { number }
+
+ID = { ASCII_ALPHA+ }
+number = { ASCII_DIGIT+ }
