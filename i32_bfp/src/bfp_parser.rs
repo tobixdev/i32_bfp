@@ -32,22 +32,66 @@ fn build_ast_action(pairs: &mut Pairs<'_, Rule>) -> ast::Action {
 
 fn build_ast_function_def(pairs: &mut Pairs<'_, Rule>) -> ast::FunctionDef {
     let name_rule = pairs.next().unwrap();
-    let expr_rule = pairs.next().unwrap();
-    let expr = match expr_rule.as_rule() {
-        Rule::expr => build_ast_expr(&mut expr_rule.into_inner()),
+    let second_pair = pairs.next().unwrap();
+    let rule_to_match = second_pair.as_rule();
+    let result = match rule_to_match {
+        Rule::expr => (build_ast_expr(&mut second_pair.into_inner()), None),
+        Rule::ID => (build_ast_expr(&mut pairs.next().unwrap().into_inner()), Some(second_pair.as_str().to_string())),
         _ => unreachable!("Rule cannot be matched in function def"),
     };
 
     ast::FunctionDef {
         name: name_rule.as_str().to_string(),
-        body: Box::new(expr),
+        parameter: result.1,
+        body: Box::new(result.0),
     }
 }
 
 fn build_ast_expr(pairs: &mut Pairs<'_, Rule>) -> ast::Expr {
     let rule = pairs.next().unwrap();
     match rule.as_rule() {
-        Rule::number => ast::Expr::Number(rule.as_str().parse().unwrap()),
+        Rule::addsub => build_ast_addsub(&mut rule.into_inner()),
         _ => unreachable!("Rule cannot be matched in expr"),
+    }
+}
+
+fn build_ast_addsub(pairs: &mut Pairs<'_, Rule>) -> ast::Expr {
+    let lhs = pairs.next().unwrap();
+    let op = pairs.next();
+
+    if op.is_none() {
+        return build_ast_muldiv(&mut lhs.into_inner());
+    }
+    let rhs = pairs.next().unwrap();
+    match op.unwrap().as_str() {
+        "+" => ast::Expr::Add(Box::new(build_ast_muldiv(&mut lhs.into_inner())), Box::new(build_ast_addsub(&mut rhs.into_inner()))),
+        "-" => ast::Expr::Sub(Box::new(build_ast_muldiv(&mut lhs.into_inner())), Box::new(build_ast_addsub(&mut rhs.into_inner()))),
+        _ => unreachable!("Operator cannot be matched in addsub")
+    }
+}
+
+fn build_ast_muldiv(pairs: &mut Pairs<'_, Rule>) -> ast::Expr {
+    let lhs = pairs.next().unwrap();
+    let op = pairs.next();
+
+    if op.is_none() {
+        return build_ast_atom(&mut lhs.into_inner());
+    }
+
+    let rhs = pairs.next().unwrap();
+    match op.unwrap().as_str() {
+        "*" => ast::Expr::Mul(Box::new(build_ast_atom(&mut lhs.into_inner())), Box::new(build_ast_muldiv(&mut rhs.into_inner()))),
+        "/" => ast::Expr::Div(Box::new(build_ast_atom(&mut lhs.into_inner())), Box::new(build_ast_muldiv(&mut rhs.into_inner()))),
+        _ => unreachable!("Operator cannot be matched in muldiv")
+    }
+}
+
+fn build_ast_atom(pairs: &mut Pairs<'_, Rule>) -> ast::Expr {
+    let rule = pairs.next().unwrap();
+    match rule.as_rule() {
+        Rule::NUMBER => ast::Expr::Number(rule.as_str().parse().unwrap()),
+        Rule::ID => ast::Expr::Var(rule.as_str().to_string()),
+        Rule::expr => build_ast_expr(&mut rule.into_inner()),
+        _ => unreachable!("Rule cannot be matched in atom"),
     }
 }

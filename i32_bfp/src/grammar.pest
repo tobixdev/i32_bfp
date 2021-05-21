@@ -1,8 +1,18 @@
 action = { function_def }
 
-function_def = { ID ~ "(" ~ ")" ~ ":=" ~ expr }
+function_def = { ID ~ "(" ~ ID? ~ ")" ~ ":=" ~ expr }
 
-expr = { number }
+expr = { addsub }
+
+addsub = { muldiv ~ (addsub_op ~ addsub)?  }
+addsub_op = { "+" | "-" }
+muldiv = { atom ~ (muldiv_op ~ muldiv)? }
+muldiv_op = { "*" | "/" }
+atom = {
+    "(" ~ expr ~ ")" |
+    NUMBER |
+    ID
+}
 
 ID = { ASCII_ALPHA+ }
-number = { ASCII_DIGIT+ }
+NUMBER = { ASCII_DIGIT+ }
