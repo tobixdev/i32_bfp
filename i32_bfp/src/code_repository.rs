@@ -12,13 +12,14 @@ impl CodeRepository {
         }
     }
     
-    pub fn add_placeholder(&mut self, function_def: &FunctionDef) {
+    pub fn add_placeholder(&mut self, function_def: &FunctionDef) -> Result<(), String> {
         let mut ctx = CompilationContext::new();
         if let Some(var) = function_def.parameter.clone() {
-            ctx.assign_register_to_variable(var);
+            ctx.assign_register_to_variable(var)?;
         }
-        let compiled = ctx.compile(&function_def.body);
+        let compiled = ctx.compile(&function_def.body)?;
         self.code.insert(function_def.name.clone(), compiled);
+        Ok(())
     }
 
     pub fn print_code(&self, name: &str) {

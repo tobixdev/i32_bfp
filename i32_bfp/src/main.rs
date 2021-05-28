@@ -5,7 +5,6 @@ mod compiler;
 
 #[macro_use]
 extern crate pest_derive;
-#[macro_use]
 extern crate dynasm;
 use std::io::{self, BufRead, Write};
 use bfp_parser::parse;
@@ -28,27 +27,28 @@ fn main() {
     }
 }
 
-fn handle_line(mut code_repository: &mut CodeRepository, line: &str) -> () {
-    match parse(line) {
-        Ok(ast) => {
-            handle_ast(&mut code_repository, ast);
-        }
-        Err(error) => {
-            println!("Error while parsing: {}", error)
-        }
+fn handle_line(mut code_repository: &mut CodeRepository, line: &str) {
+    let result = parse(line)
+        .and_then(|ast| handle_ast(&mut code_repository, ast));
+    if let Err(error) = result {
+        println!("ERROR>\n{}", error);
     }
 }
 
-fn handle_ast(code_repository: &mut CodeRepository, ast: ast::Action) {
+fn handle_ast(code_repository: &mut CodeRepository, ast: ast::Action) -> Result<(), String> {
     match ast {
         ast::Action::FunctionDef(func_def) => {
-            code_repository.add_placeholder(&func_def)
+            code_repository.add_placeholder(&func_def)?
         }
         ast::Action::Query(query) => {
             let used_vars = query.used_variables();
             let mut ctx = CompilationContext::new();
-            used_vars.iter().for_each(|v| ctx.assign_register_to_variable(v.to_string()));
-            let runable = ctx.compile(&query);
+
+            for used_var in &used_vars {
+                ctx.assign_register_to_variable(used_var.to_string())?;
+            }
+
+            let runable = ctx.compile(&query)?;
             println!("The following free variables were found: {:?}", used_vars);
             println!("Result: {}", runable.call(1));
         }
@@ -56,6 +56,7 @@ fn handle_ast(code_repository: &mut CodeRepository, ast: ast::Action) {
             code_repository.print_code(&name);
         }
     }
+    Ok(())
 }
 
 fn read_line(stdin: &Stdin) -> Option<String> {

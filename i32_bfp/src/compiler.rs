@@ -21,22 +21,26 @@ impl CompilationContext {
         }
     }
 
-    fn next_register(&mut self) -> Rd {
-        self.available_registers.pop().expect("All registers used!")
+    fn next_register(&mut self) -> Result<Rd, String> {
+        self.available_registers.pop().ok_or("No more registers available!".to_string())
     }
 
-    pub fn assign_register_to_variable(&mut self, var: String) {
-        let reg = self.available_parameter_registers.pop().expect("No parameter register left!");
-        self.var.insert(var, reg);
+    pub fn assign_register_to_variable(&mut self, var: String) -> Result<Rd, String> {
+        let result= self.available_parameter_registers.pop()
+            .ok_or("No more parameter registers available!".to_string());
+        if let Ok(reg) = result {
+            self.var.insert(var, reg);
+        }
+        result
     }
 
-    pub fn compile(mut self, expr: &Expr) -> Runable {
+    pub fn compile(mut self, expr: &Expr) -> Result<Runable, String> {
         println!("JIT> Compiler called. Starting assembly ...");
         let offset = self.ops.offset();
         dynasm!(self.ops
             ; .arch x64
         );
-        let result_register = expr.compile(&mut self);
+        let result_register = expr.compile(&mut self)?;
         dynasm!(self.ops
             ; mov rax, Rq(result_register.code())
             ; ret
@@ -45,7 +49,7 @@ impl CompilationContext {
         
         println!("JIT> Compilation finished. Code has size {} @{:p}.", buf.len(), buf.ptr(offset));
 
-        Runable { buf: buf, offset: offset }
+        Ok(Runable { buf: buf, offset: offset })
     }
 }
 
@@ -72,14 +76,14 @@ impl Runable {
 
 
 pub trait Compilable {
-    fn compile(&self, ctx: &mut CompilationContext) -> Rd;
+    fn compile(&self, ctx: &mut CompilationContext) -> Result<Rd, String>;
 }
 
 impl Compilable for Expr {
-    fn compile(&self, mut ctx: &mut CompilationContext) -> Rd {
+    fn compile(&self, mut ctx: &mut CompilationContext) -> Result<Rd, String> {
         match self {
             Expr::Number(number) => compile_number(*number, &mut ctx),
-            Expr::Var(var) => *ctx.var.get(var).expect("Variable was not defined"),
+            Expr::Var(var) => Ok(*ctx.var.get(var).expect("Variable was not defined")),
             Expr::Add(lhs, rhs) => compile_add(&lhs, &rhs, &mut ctx),
             Expr::Sub(lhs, rhs) => compile_sub(&lhs, &rhs, &mut ctx),
             Expr::Mul(lhs, rhs) => compile_mul(&lhs, &rhs, &mut ctx),
@@ -88,86 +92,86 @@ impl Compilable for Expr {
     }
 }
 
-fn compile_number(number: i32, ctx: &mut CompilationContext) -> Rd {
-    let register = ctx.next_register();
+fn compile_number(number: i32, ctx: &mut CompilationContext) -> Result<Rd, String> {
+    let register = ctx.next_register()?;
     dynasm!(ctx.ops
         ; mov Rq(register.code()), QWORD number as _
     );
-    register
+    Ok(register)
 }
 
-fn compile_add(lhs: &Expr, rhs: &Expr, mut ctx: &mut CompilationContext) -> Rd {
-    let lhs_reg = lhs.compile(&mut ctx);
-    let rhs_reg = rhs.compile(&mut ctx);
+fn compile_add(lhs: &Expr, rhs: &Expr, mut ctx: &mut CompilationContext) -> Result<Rd, String> {
+    let lhs_reg = lhs.compile(&mut ctx)?;
+    let rhs_reg = rhs.compile(&mut ctx)?;
     if may_override(lhs_reg) {
         dynasm!(ctx.ops
             ; add Rd(lhs_reg.code()), Rd(rhs_reg.code())
         );
-        lhs_reg
+        Ok(lhs_reg)
     } else if may_override(rhs_reg) {
         dynasm!(ctx.ops
             ; add Rd(rhs_reg.code()), Rd(lhs_reg.code())
         );
-        rhs_reg
+        Ok(rhs_reg)
     } else {
-        let new_reg = ctx.next_register();
+        let new_reg = ctx.next_register()?;
         dynasm!(ctx.ops
             ; mov Rd(new_reg.code()), Rd(lhs_reg.code())
             ; add Rd(new_reg.code()), Rd(rhs_reg.code())
         );
-        new_reg
+        Ok(new_reg)
     }
 }
 
-fn compile_sub(lhs: &Expr, rhs: &Expr, mut ctx: &mut CompilationContext) -> Rd {
-    let lhs_reg = lhs.compile(&mut ctx);
-    let rhs_reg = rhs.compile(&mut ctx);
+fn compile_sub(lhs: &Expr, rhs: &Expr, mut ctx: &mut CompilationContext) -> Result<Rd, String> {
+    let lhs_reg = lhs.compile(&mut ctx)?;
+    let rhs_reg = rhs.compile(&mut ctx)?;
     if may_override(lhs_reg) {
         dynasm!(ctx.ops
             ; sub Rd(lhs_reg.code()), Rd(rhs_reg.code())
         );
-        lhs_reg
+        Ok(lhs_reg)
     } else {
-        let new_reg = ctx.next_register();
+        let new_reg = ctx.next_register()?;
         dynasm!(ctx.ops
             ; mov Rd(new_reg.code()), Rd(lhs_reg.code())
             ; sub Rd(new_reg.code()), Rd(rhs_reg.code())
         );
-        new_reg
+        Ok(new_reg)
     }
 }
 
-fn compile_mul(lhs: &Expr, rhs: &Expr, mut ctx: &mut CompilationContext) -> Rd {
-    let lhs_reg = lhs.compile(&mut ctx);
-    let rhs_reg = rhs.compile(&mut ctx);
+fn compile_mul(lhs: &Expr, rhs: &Expr, mut ctx: &mut CompilationContext) -> Result<Rd, String> {
+    let lhs_reg = lhs.compile(&mut ctx)?;
+    let rhs_reg = rhs.compile(&mut ctx)?;
     if may_override(lhs_reg) {
         dynasm!(ctx.ops
             ; mov eax, Rd(lhs_reg.code())
             ; mul Rd(rhs_reg.code())
             ; mov Rd(lhs_reg.code()), eax
         );
-        lhs_reg
+        Ok(lhs_reg)
     } else if may_override(rhs_reg) {
         dynasm!(ctx.ops
             ; mov eax, Rd(rhs_reg.code())
             ; mul Rd(lhs_reg.code())
             ; mov Rd(rhs_reg.code()), eax
         );
-        rhs_reg
+        Ok(rhs_reg)
     } else {
-        let new_reg = ctx.next_register();
+        let new_reg = ctx.next_register()?;
         dynasm!(ctx.ops
             ; mov eax, Rd(lhs_reg.code())
             ; mul Rd(rhs_reg.code())
             ; mov Rd(new_reg.code()), eax
         );
-        new_reg
+        Ok(new_reg)
     }
 }
 
-fn compile_div(lhs: &Expr, rhs: &Expr, mut ctx: &mut CompilationContext) -> Rd {
-    let lhs_reg = lhs.compile(&mut ctx);
-    let rhs_reg = rhs.compile(&mut ctx);
+fn compile_div(lhs: &Expr, rhs: &Expr, mut ctx: &mut CompilationContext) -> Result<Rd, String> {
+    let lhs_reg = lhs.compile(&mut ctx)?;
+    let rhs_reg = rhs.compile(&mut ctx)?;
     dynasm!(ctx.ops
         ; mov edx, 0
         ; mov eax, Rd(lhs_reg.code())
@@ -177,18 +181,18 @@ fn compile_div(lhs: &Expr, rhs: &Expr, mut ctx: &mut CompilationContext) -> Rd {
         dynasm!(ctx.ops
             ; mov Rd(lhs_reg.code()), eax
         );
-        lhs_reg
+        Ok(lhs_reg)
     } else if may_override(rhs_reg) {
         dynasm!(ctx.ops
             ; mov Rd(rhs_reg.code()), eax
         );
-        rhs_reg
+        Ok(rhs_reg)
     } else {
-        let new_reg = ctx.next_register();
+        let new_reg = ctx.next_register()?;
         dynasm!(ctx.ops
             ; mov Rd(new_reg.code()), eax
         );
-        new_reg
+        Ok(new_reg)
     }
 }
 
