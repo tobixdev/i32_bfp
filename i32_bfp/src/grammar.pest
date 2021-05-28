@@ -1,6 +1,9 @@
-action = { function_def }
+action = { SOI ~ (function_def | query | command) ~ EOI }
 
 function_def = { ID ~ "(" ~ ID? ~ ")" ~ ":=" ~ expr }
+query = { expr }
+command = { show_code_command }
+show_code_command = { ".code" ~ ID }
 
 expr = { addsub }
 
@@ -16,3 +19,4 @@ atom = {
 
 ID = { ASCII_ALPHA+ }
 NUMBER = { ASCII_DIGIT+ }
+WHITESPACE = _{ " " }

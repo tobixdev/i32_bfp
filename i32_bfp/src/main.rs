@@ -10,6 +10,7 @@ extern crate dynasm;
 use std::io::{self, BufRead, Write};
 use bfp_parser::parse;
 use code_repository::CodeRepository;
+use compiler::CompilationContext;
 use io::Stdin;
 
 fn main() {
@@ -42,6 +43,17 @@ fn handle_ast(code_repository: &mut CodeRepository, ast: ast::Action) {
     match ast {
         ast::Action::FunctionDef(func_def) => {
             code_repository.add_placeholder(&func_def)
+        }
+        ast::Action::Query(query) => {
+            let used_vars = query.used_variables();
+            let mut ctx = CompilationContext::new();
+            used_vars.iter().for_each(|v| ctx.assign_register_to_variable(v.to_string()));
+            let runable = ctx.compile(&query);
+            println!("The following free variables were found: {:?}", used_vars);
+            println!("Result: {}", runable.call(1));
+        }
+        ast::Action::Command(ast::Command::ShowCode(name)) => {
+            code_repository.print_code(&name);
         }
     }
 }

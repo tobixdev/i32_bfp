@@ -1,8 +1,8 @@
 use std::{collections::HashMap};
-use crate::{ast::{FunctionDef}, compiler::CompilationContext};
+use crate::{ast::{FunctionDef}, compiler::{CompilationContext, Runable}};
 
 pub struct CodeRepository {
-    code: HashMap<String, extern "win64" fn(i32) -> i32>
+    code: HashMap<String, Runable>
 }
 
 impl CodeRepository {
@@ -13,7 +13,22 @@ impl CodeRepository {
     }
     
     pub fn add_placeholder(&mut self, function_def: &FunctionDef) {
-        let compiled = CompilationContext::new().compile(function_def.body.as_ref());
+        let mut ctx = CompilationContext::new();
+        if let Some(var) = function_def.parameter.clone() {
+            ctx.assign_register_to_variable(var);
+        }
+        let compiled = ctx.compile(&function_def.body);
         self.code.insert(function_def.name.clone(), compiled);
+    }
+
+    pub fn print_code(&self, name: &str) {
+        match self.code.get(name) {
+            Some(runable) => {
+                runable.print();
+            }
+            None => {
+                println!("No code entry found for fn {}.", name);
+            }
+        }
     }
 }
