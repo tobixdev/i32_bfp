@@ -41,7 +41,7 @@ fn handle_ast(code_repository: &mut CodeRepository, ast: ast::Action) -> Result<
             code_repository.add_placeholder(&func_def)?
         }
         ast::Action::Query(query) => {
-            execute_query(query)?;
+            execute_query(code_repository, query)?;
         }
         ast::Action::Command(ast::Command::ShowCode(name)) => {
             code_repository.print_code(&name);
@@ -50,9 +50,9 @@ fn handle_ast(code_repository: &mut CodeRepository, ast: ast::Action) -> Result<
     Ok(())
 }
 
-fn execute_query(query: ast::Expr) -> Result<(), String> {
+fn execute_query(code_repository: &mut CodeRepository, query: ast::Expr) -> Result<(), String> {
     let used_vars = query.used_variables();
-    let mut ctx = CompilationContext::new();
+    let mut ctx = CompilationContext::new(code_repository);
 
     for used_var in &used_vars {
         ctx.assign_register_to_variable(used_var.to_string())?;

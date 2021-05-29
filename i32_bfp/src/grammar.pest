@@ -16,8 +16,10 @@ muldiv_op = { "*" | "/" }
 atom = {
     "(" ~ expr ~ ")" |
     NUMBER |
+    function_call |
     ID
 }
+function_call = { ID ~ "(" ~ expr? ~ ")" }
 
 ID = { ASCII_ALPHA+ }
 NUMBER = { ASCII_DIGIT+ }

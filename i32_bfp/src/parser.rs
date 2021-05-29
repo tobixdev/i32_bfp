@@ -135,8 +135,18 @@ fn build_ast_atom(pairs: &mut Pairs<'_, Rule>) -> Result<ast::Expr, String> {
         Rule::NUMBER => ast::Expr::Number(rule.as_str().parse().or_else(|_| Err("Integer too big.".to_string()))?),
         Rule::ID => ast::Expr::Var(rule.as_str().to_string()),
         Rule::expr => build_ast_expr(&mut rule.into_inner())?,
+        Rule::function_call => build_ast_function_call(&mut rule.into_inner())?,
         _ => unreachable!("Rule cannot be matched in atom"),
     })
+}
+
+fn build_ast_function_call(pairs: &mut Pairs<'_, Rule>) -> Result<ast::Expr, String> {
+    let rule = pairs.next().unwrap();
+    let arg = match pairs.next() {
+        Some(next_rule) => Some(Box::new(build_ast_expr(&mut next_rule.into_inner())?)),
+        None => None,
+    };
+    Ok (ast::Expr::FunctionCall(rule.as_str().to_string(), arg))
 }
 
 fn build_ast_command(pairs: &mut Pairs<'_, Rule>) -> ast::Command {

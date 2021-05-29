@@ -19,6 +19,7 @@ pub struct FunctionDef {
 pub enum Expr {
     Number(i32),
     Var(String),
+    FunctionCall(String, Option<Box<Expr>>),
     Add(Box<Expr>, Box<Expr>),
     Sub(Box<Expr>, Box<Expr>),
     Mul(Box<Expr>, Box<Expr>),
@@ -46,6 +47,11 @@ impl Expr {
             Expr::Neq(lhs, rhs) => { 
                 lhs.add_used_variables(&mut vars);
                 rhs.add_used_variables(&mut vars);
+            },
+            Expr::FunctionCall(_, expr) => {
+                if let Some(expr) = expr {
+                    expr.add_used_variables(&mut vars)
+                }
             }
         }
     }
