@@ -5,8 +5,10 @@ query = { expr }
 command = { show_code_command }
 show_code_command = { ".code" ~ ID }
 
-expr = { addsub }
+expr = { relation }
 
+relation = {addsub ~ (relator ~ relation)? }
+relator = { "=" | "<>" }
 addsub = { muldiv ~ (addsub_op ~ addsub)?  }
 addsub_op = { "+" | "-" }
 muldiv = { atom ~ (muldiv_op ~ muldiv)? }

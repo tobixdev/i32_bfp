@@ -60,8 +60,29 @@ fn build_ast_query(pairs: &mut Pairs<'_, Rule>) -> Result<ast::Action, String> {
 fn build_ast_expr(pairs: &mut Pairs<'_, Rule>) -> Result<ast::Expr, String> {
     let rule = pairs.next().unwrap();
     Ok(match rule.as_rule() {
-        Rule::addsub => build_ast_addsub(&mut rule.into_inner())?,
+        Rule::relation => build_ast_relation(&mut rule.into_inner())?,
         _ => unreachable!("Rule cannot be matched in expr"),
+    })
+}
+
+fn build_ast_relation(pairs: &mut Pairs<'_, Rule>) -> Result<ast::Expr, String> {
+    let lhs = pairs.next().unwrap();
+    let op = pairs.next();
+
+    if op.is_none() {
+        return build_ast_addsub(&mut lhs.into_inner());
+    }
+    let rhs = pairs.next().unwrap();
+    Ok(match op.unwrap().as_str() {
+        "=" => ast::Expr::Eq(
+            Box::new(build_ast_addsub(&mut lhs.into_inner())?),
+            Box::new(build_ast_relation(&mut rhs.into_inner())?),
+        ),
+        "<>" => ast::Expr::Neq(
+            Box::new(build_ast_addsub(&mut lhs.into_inner())?),
+            Box::new(build_ast_relation(&mut rhs.into_inner())?),
+        ),
+        _ => unreachable!("Operator cannot be matched in relation"),
     })
 }
 

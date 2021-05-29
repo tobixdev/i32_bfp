@@ -22,7 +22,9 @@ pub enum Expr {
     Add(Box<Expr>, Box<Expr>),
     Sub(Box<Expr>, Box<Expr>),
     Mul(Box<Expr>, Box<Expr>),
-    Div(Box<Expr>, Box<Expr>)
+    Div(Box<Expr>, Box<Expr>),
+    Eq(Box<Expr>, Box<Expr>),
+    Neq(Box<Expr>, Box<Expr>),
 }
 
 impl Expr {
@@ -39,7 +41,9 @@ impl Expr {
             Expr::Add(lhs, rhs) | 
             Expr::Sub(lhs, rhs) | 
             Expr::Mul(lhs, rhs) | 
-            Expr::Div(lhs, rhs) => { 
+            Expr::Div(lhs, rhs) |
+            Expr::Eq(lhs, rhs) |
+            Expr::Neq(lhs, rhs) => { 
                 lhs.add_used_variables(&mut vars);
                 rhs.add_used_variables(&mut vars);
             }
