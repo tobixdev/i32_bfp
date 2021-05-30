@@ -59,20 +59,25 @@ impl CompilationContext<'_> {
         );
         let buf = self.ops.finalize().unwrap();
         
-        let since_the_epoch = start.duration_since(start).unwrap().as_millis();
+        let since_the_epoch = start.duration_since(start).unwrap().as_nanos();
         
-        println!("JIT> Compilation finished in {} ms. Code has size {} @{:p}.", since_the_epoch, buf.len(), buf.ptr(offset));
+        println!("JIT> Compilation finished in {} ns. Code has size {} @{:p}.", since_the_epoch, buf.len(), buf.ptr(offset));
 
-        Ok(Runable { buf: buf, offset: offset })
+        Ok(Runable::new(buf, offset))
     }
 }
 
+#[derive(Debug)]
 pub struct Runable {
     buf: ExecutableBuffer,
     offset: AssemblyOffset
 }
 
 impl Runable {
+    pub fn new(buf: ExecutableBuffer, offset: AssemblyOffset) -> Runable {
+        Runable {buf, offset}
+    }
+
     pub fn call(&self, arg1: i32) -> i32 {
         let expr_fn: extern "win64" fn(i32) -> i32 = unsafe { mem::transmute(self.buf.ptr(self.offset)) };
         expr_fn(arg1)
@@ -236,7 +241,6 @@ fn compile_function_call(name: &String, param: &Option<Box<Expr>>, mut ctx: &mut
 pub extern "win64" fn call_function(repository: &CodeRepository, buffer: *const u8, length: u64, arg: i32) -> i32 {
     let fn_name = unsafe { slice::from_raw_parts(buffer, length as usize) };
     let fn_name = std::str::from_utf8(fn_name).unwrap();
-    println!("calling fn {}", fn_name);
     repository.get_fn(fn_name)
         .map(|func| func.call(arg))
         .unwrap_or(0)

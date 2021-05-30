@@ -1,21 +1,25 @@
 use itertools::Itertools;
 
+#[derive(Debug)]
 pub enum Action {
     FunctionDef(FunctionDef),
     Query(Expr),
     Command(Command)
 }
 
+#[derive(Debug)]
 pub enum Command {
     ShowCode(String)
 }
 
+#[derive(Debug)]
 pub struct FunctionDef {
     pub name: String,
     pub parameter: Option<String>,
     pub body: Expr
 }
 
+#[derive(Debug)]
 pub enum Expr {
     Number(i32),
     Var(String),
