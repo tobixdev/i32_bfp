@@ -37,15 +37,11 @@ fn handle_line(mut code_repository: &mut CodeRepository, line: &str) {
 
 fn handle_ast(code_repository: &mut CodeRepository, ast: ast::Action) -> Result<(), String> {
     match ast {
-        ast::Action::FunctionDef(func_def) => {
-            code_repository.add_placeholder(func_def)?
-        }
-        ast::Action::Query(query) => {
-            execute_query(code_repository, query)?;
-        }
-        ast::Action::Command(ast::Command::ShowCode(name)) => {
-            code_repository.print_code(&name);
-        }
+        ast::Action::FunctionDef(func_def) => code_repository.add_placeholder(func_def)?,
+        ast::Action::Query(query) => execute_query(code_repository, query)?,
+        ast::Action::Command(ast::Command::ShowCode(name)) => code_repository.print_code(&name),
+        ast::Action::Command(ast::Command::ListFunctions()) => code_repository.list_functions(),
+        ast::Action::Command(ast::Command::DeleteFunction(name)) => code_repository.delete(&name)
     }
     Ok(())
 }

@@ -67,6 +67,17 @@ impl CodeRepository {
         self.ast.remove(name)
     }
 
+    pub fn delete(&mut self, name: &str) {
+        self.code.remove(name);
+        self.ast.remove(name);
+    }
+
+    pub fn list_functions(&self) {
+        for key in self.code.keys() {
+            println!("{}{}", key, if self.ast.contains_key(key) { " (Not yet compiled)" } else { "" })
+        }
+    }
+
     pub fn print_code(&self, name: &str) {
         match self.code.get(name) {
             Some(runable) => {

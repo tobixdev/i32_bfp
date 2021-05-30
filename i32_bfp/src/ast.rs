@@ -9,7 +9,9 @@ pub enum Action {
 
 #[derive(Debug)]
 pub enum Command {
-    ShowCode(String)
+    ShowCode(String),
+    ListFunctions(),
+    DeleteFunction(String)
 }
 
 #[derive(Debug)]

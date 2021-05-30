@@ -152,9 +152,9 @@ fn build_ast_function_call(pairs: &mut Pairs<'_, Rule>) -> Result<ast::Expr, Str
 fn build_ast_command(pairs: &mut Pairs<'_, Rule>) -> ast::Command {
     let rule = pairs.next().unwrap();
     match rule.as_rule() {
-        Rule::show_code_command => {
-            ast::Command::ShowCode(rule.into_inner().next().unwrap().as_str().to_string())
-        }
+        Rule::show_code_command => ast::Command::ShowCode(rule.into_inner().next().unwrap().as_str().to_string()),
+        Rule::list_fn_command => ast::Command::ListFunctions(),
+        Rule::delete_fn_command => ast::Command::DeleteFunction(rule.into_inner().next().unwrap().as_str().to_string()),
         _ => unreachable!("Rule cannot be matched in command"),
     }
 }
