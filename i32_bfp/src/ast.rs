@@ -11,7 +11,8 @@ pub enum Action {
 pub enum Command {
     ShowCode(String),
     ListFunctions(),
-    DeleteFunction(String)
+    DeleteFunction(String),
+    SwitchMode(String)
 }
 
 #[derive(Debug)]

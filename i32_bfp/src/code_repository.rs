@@ -80,12 +80,8 @@ impl CodeRepository {
 
     pub fn print_code(&self, name: &str) {
         match self.code.get(name) {
-            Some(runable) => {
-                runable.print();
-            }
-            None => {
-                println!("No code entry found for fn {}.", name);
-            }
+            Some(runable) => runable.print(),
+            None => println!("No code entry found for fn {}.", name)
         }
     }
 }

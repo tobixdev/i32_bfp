@@ -155,6 +155,7 @@ fn build_ast_command(pairs: &mut Pairs<'_, Rule>) -> ast::Command {
         Rule::show_code_command => ast::Command::ShowCode(rule.into_inner().next().unwrap().as_str().to_string()),
         Rule::list_fn_command => ast::Command::ListFunctions(),
         Rule::delete_fn_command => ast::Command::DeleteFunction(rule.into_inner().next().unwrap().as_str().to_string()),
+        Rule::mode_command => ast::Command::SwitchMode(rule.into_inner().next().unwrap().as_str().to_string()),
         _ => unreachable!("Rule cannot be matched in command"),
     }
 }
