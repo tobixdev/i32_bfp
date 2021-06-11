@@ -1,3 +1,4 @@
+use crate::ast::Expr;
 use crate::compiled_executor::CompiledExecutor;
 use crate::interpreted_executor::InterpretedExecutor;
 use crate::parser::parse;
@@ -70,7 +71,8 @@ impl Runtime {
     fn handle_ast(&mut self, ast: ast::Action) -> Result<(), String> {
         match ast {
             ast::Action::FunctionDef(func_def) => {
-                self.compiled.handle_function_def(func_def)?;
+                self.compiled.handle_function_def(func_def.clone())?;
+                self.interpreted.handle_function_def(func_def)?;
             },
             ast::Action::Query(query) => self.execute_query(query)?,
             ast::Action::Command(ast::Command::ShowCode(name)) => self.compiled.print_code(&name),
@@ -85,7 +87,8 @@ impl Runtime {
             ast::Action::Command(ast::Command::SwitchExecutor(executor)) => {
                 self.used_executor = ExecutorType::from(&executor);
                 println!("Switched executor to {:?}", self.used_executor);
-            }
+            },
+            ast::Action::Command(ast::Command::Test(expr)) => self.test_expr(&expr)?
         }
         Ok(())
     }
@@ -114,6 +117,22 @@ impl Runtime {
             to_check-=1;
         }
         println!("Formula does hold.");
+        Ok(())
+    }
+
+    fn test_expr(&mut self, expr: &Expr) -> Result<(), String> {
+        let compiler = self.compiled.get_query_runable(expr.clone())?;
+        let interpreted = self.interpreted.get_query_runable(expr.clone())?;
+
+        for i in -1000..1000 {
+            let result_compiler = compiler(i);
+            let result_interpreted = interpreted(i);
+            if result_compiler != result_interpreted {
+                println!("Difference between compiled and interpreted exeuction for input {}. Compiled: {}, Interpredted: {}.", i, result_compiler, result_interpreted);
+                return Ok(())
+            }
+        }
+
         Ok(())
     }
 

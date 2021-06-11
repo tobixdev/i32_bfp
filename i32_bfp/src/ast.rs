@@ -13,17 +13,18 @@ pub enum Command {
     ListFunctions(),
     DeleteFunction(String),
     SwitchMode(String),
-    SwitchExecutor(String)
+    SwitchExecutor(String),
+    Test(Expr)
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FunctionDef {
     pub name: String,
     pub parameter: Option<String>,
     pub body: Expr
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Expr {
     Number(i32),
     Var(String),

@@ -27,7 +27,7 @@ fn build_ast_action(pairs: &mut Pairs<'_, Rule>) -> Result<ast::Action, String> 
             ast::Action::FunctionDef(build_ast_function_def(&mut rule.into_inner())?)
         }
         Rule::query => build_ast_query(&mut rule.into_inner())?,
-        Rule::command => ast::Action::Command(build_ast_command(&mut rule.into_inner())),
+        Rule::command => ast::Action::Command(build_ast_command(&mut rule.into_inner())?),
         _ => unreachable!("Rule cannot be matched in action"),
     })
 }
@@ -149,14 +149,15 @@ fn build_ast_function_call(pairs: &mut Pairs<'_, Rule>) -> Result<ast::Expr, Str
     Ok (ast::Expr::FunctionCall(rule.as_str().to_string(), arg))
 }
 
-fn build_ast_command(pairs: &mut Pairs<'_, Rule>) -> ast::Command {
+fn build_ast_command(pairs: &mut Pairs<'_, Rule>) -> Result<ast::Command, String> {
     let rule = pairs.next().unwrap();
-    match rule.as_rule() {
+    Ok(match rule.as_rule() {
         Rule::show_code_command => ast::Command::ShowCode(rule.into_inner().next().unwrap().as_str().to_string()),
         Rule::list_fn_command => ast::Command::ListFunctions(),
         Rule::delete_fn_command => ast::Command::DeleteFunction(rule.into_inner().next().unwrap().as_str().to_string()),
         Rule::mode_command => ast::Command::SwitchMode(rule.into_inner().next().unwrap().as_str().to_string()),
         Rule::executor_command => ast::Command::SwitchExecutor(rule.into_inner().next().unwrap().as_str().to_string()),
+        Rule::test_command => ast::Command::Test(build_ast_expr(&mut rule.into_inner().next().unwrap().into_inner())?),
         _ => unreachable!("Rule cannot be matched in command"),
-    }
+    })
 }
