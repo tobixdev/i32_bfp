@@ -3,6 +3,7 @@ mod ast;
 mod code_repository;
 mod compiler;
 mod runtime;
+mod compiled_executor;
 
 #[macro_use]
 extern crate pest_derive;
@@ -11,7 +12,7 @@ use std::io::{self, BufRead, Stdin, Write};
 
 fn main() {
     let stdin = io::stdin();
-    let mut runtime = runtime::Runtime::new();
+    let mut runtime = runtime::Runtime::new_compiled();
     loop {
         print!("> ");
         std::io::stdout().flush().expect("flush error.");

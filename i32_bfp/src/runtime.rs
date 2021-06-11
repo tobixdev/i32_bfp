@@ -1,6 +1,6 @@
+use crate::compiled_executor::CompiledExecutor;
+use crate::compiler::Runable;
 use crate::parser::parse;
-use crate::code_repository::CodeRepository;
-use crate::compiler::CompilationContext;
 use crate::ast;
 
 #[derive(Debug)]
@@ -19,17 +19,23 @@ impl ExeuctionMode {
     }
 }
 
+pub trait Executor {
+    fn handle_function_def(&mut self, func_def: ast::FunctionDef) -> Result<(), String>;
+    fn get_query_runable(&mut self, query: ast::Expr) -> Result<Runable, String>;
+    fn delete(&mut self, name: &str);
+}
+
 pub struct Runtime {
     mode: ExeuctionMode,
-    code_repository: CodeRepository
+    compiled: CompiledExecutor
 }
 
 impl Runtime {
     
-    pub fn new() -> Runtime {
+    pub fn new_compiled() -> Runtime {
         Runtime {
             mode: ExeuctionMode::Proof,
-            code_repository: CodeRepository::new()
+            compiled: CompiledExecutor::new()
         }
     }
 
@@ -43,11 +49,15 @@ impl Runtime {
     
     fn handle_ast(&mut self, ast: ast::Action) -> Result<(), String> {
         match ast {
-            ast::Action::FunctionDef(func_def) => self.code_repository.add_placeholder(func_def)?,
+            ast::Action::FunctionDef(func_def) => {
+                self.compiled.handle_function_def(func_def)?;
+            },
             ast::Action::Query(query) => self.execute_query(query)?,
-            ast::Action::Command(ast::Command::ShowCode(name)) => self.code_repository.print_code(&name),
-            ast::Action::Command(ast::Command::ListFunctions()) => self.code_repository.list_functions(),
-            ast::Action::Command(ast::Command::DeleteFunction(name)) => self.code_repository.delete(&name),
+            ast::Action::Command(ast::Command::ShowCode(name)) => self.compiled.print_code(&name),
+            ast::Action::Command(ast::Command::ListFunctions()) => self.compiled.list_functions(),
+            ast::Action::Command(ast::Command::DeleteFunction(name)) => { 
+                self.compiled.delete(&name);
+             },
             ast::Action::Command(ast::Command::SwitchMode(mode)) => {
                 self.mode = ExeuctionMode::from(&mode);
                 println!("Switched mode to {:?}", self.mode);
@@ -58,13 +68,8 @@ impl Runtime {
     
     fn execute_query(&mut self, query: ast::Expr) -> Result<(), String> {
         let used_vars = query.used_variables();
-        let mut ctx = CompilationContext::new(&mut self.code_repository);
-    
-        for used_var in &used_vars {
-            ctx.assign_register_to_variable(used_var.to_string())?;
-        }
-    
-        let runable = ctx.compile(&query)?;
+        let runable = self.compiled.get_query_runable(query)?;
+
         println!("The following free variables were found: {:?}", used_vars);
         let (first_var_range, mut to_check) = self.get_first_var_range(&used_vars);
         println!("{} loops remaining...", to_check);
