@@ -1,7 +1,23 @@
 use crate::compiled_executor::CompiledExecutor;
-use crate::compiler::Runable;
+use crate::interpreted_executor::InterpretedExecutor;
 use crate::parser::parse;
 use crate::ast;
+
+#[derive(Debug)]
+enum ExecutorType {
+    Compiled,
+    Interpreted
+}
+
+impl ExecutorType {
+    fn from(value: &str) -> ExecutorType {
+        match value {
+            "compiled" => ExecutorType::Compiled,
+            "interpreted" => ExecutorType::Interpreted,
+            _ => panic!("Invalid exeuction mode!")
+        }
+    }
+}
 
 #[derive(Debug)]
 enum ExeuctionMode {
@@ -21,21 +37,25 @@ impl ExeuctionMode {
 
 pub trait Executor {
     fn handle_function_def(&mut self, func_def: ast::FunctionDef) -> Result<(), String>;
-    fn get_query_runable(&mut self, query: ast::Expr) -> Result<Runable, String>;
+    fn get_query_runable<'a>(&'a mut self, query: ast::Expr) -> Result<Box<dyn 'a + Fn(i32) -> i32>, String>;
     fn delete(&mut self, name: &str);
 }
 
 pub struct Runtime {
     mode: ExeuctionMode,
-    compiled: CompiledExecutor
+    used_executor: ExecutorType,
+    compiled: CompiledExecutor,
+    interpreted: InterpretedExecutor
 }
 
 impl Runtime {
     
-    pub fn new_compiled() -> Runtime {
+    pub fn new() -> Runtime {
         Runtime {
             mode: ExeuctionMode::Proof,
-            compiled: CompiledExecutor::new()
+            used_executor: ExecutorType::Compiled,
+            compiled: CompiledExecutor::new(),
+            interpreted: InterpretedExecutor::new()
         }
     }
 
@@ -61,6 +81,10 @@ impl Runtime {
             ast::Action::Command(ast::Command::SwitchMode(mode)) => {
                 self.mode = ExeuctionMode::from(&mode);
                 println!("Switched mode to {:?}", self.mode);
+            },
+            ast::Action::Command(ast::Command::SwitchExecutor(executor)) => {
+                self.used_executor = ExecutorType::from(&executor);
+                println!("Switched executor to {:?}", self.used_executor);
             }
         }
         Ok(())
@@ -68,16 +92,21 @@ impl Runtime {
     
     fn execute_query(&mut self, query: ast::Expr) -> Result<(), String> {
         let used_vars = query.used_variables();
-        let runable = self.compiled.get_query_runable(query)?;
+        let (first_var_range, mut to_check) = self.get_first_var_range(&used_vars);
+
+        let runable = match self.used_executor {
+            ExecutorType::Compiled => self.compiled.get_query_runable(query)?,
+            ExecutorType::Interpreted => self.interpreted.get_query_runable(query)?
+        };
 
         println!("The following free variables were found: {:?}", used_vars);
-        let (first_var_range, mut to_check) = self.get_first_var_range(&used_vars);
+        println!("Using {:?} executor...", self.used_executor);
         println!("{} loops remaining...", to_check);
         for i in first_var_range {
             if to_check % 100_000_000 == 0 {
                 println!("{} loops remaining...", to_check)
             }
-            let result = runable.call(i);
+            let result = runable(i);
             if result == 0 {
                 println!("Formula does not hold for {}!", i);
                 return Ok(());
