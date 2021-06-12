@@ -33,7 +33,6 @@ impl Executor for CompiledExecutor {
             ctx.assign_register_to_variable(used_var.to_string())?;
         }
         let runable = ctx.compile(&query)?;
-    
         Ok(Box::new(move |x| runable.call(x)))
     }
 

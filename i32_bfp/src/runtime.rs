@@ -132,7 +132,7 @@ impl Runtime {
                 return Ok(())
             }
         }
-
+        println!("Test OK");
         Ok(())
     }
 

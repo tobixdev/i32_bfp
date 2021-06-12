@@ -1,5 +1,7 @@
 extern crate pest;
 
+use std::num::ParseIntError;
+
 use crate::ast;
 use pest::{iterators::Pairs, Parser};
 
@@ -132,7 +134,7 @@ fn build_ast_muldiv(pairs: &mut Pairs<'_, Rule>) -> Result<ast::Expr, String> {
 fn build_ast_atom(pairs: &mut Pairs<'_, Rule>) -> Result<ast::Expr, String> {
     let rule = pairs.next().unwrap();
     Ok(match rule.as_rule() {
-        Rule::NUMBER => ast::Expr::Number(rule.as_str().parse().or_else(|_| Err("Integer too big.".to_string()))?),
+        Rule::NUMBER => ast::Expr::Number(rule.as_str().parse().or_else(|x: ParseIntError| Err(x.to_string()))?),
         Rule::ID => ast::Expr::Var(rule.as_str().to_string()),
         Rule::expr => build_ast_expr(&mut rule.into_inner())?,
         Rule::function_call => build_ast_function_call(&mut rule.into_inner())?,

@@ -28,6 +28,6 @@ atom = {
 }
 function_call = { ID ~ "(" ~ expr? ~ ")" }
 
-ID = { ASCII_ALPHA+ }
-NUMBER = { ASCII_DIGIT+ }
+ID = @{ ASCII_ALPHA+ }
+NUMBER = @{ ASCII_DIGIT+ }
 WHITESPACE = _{ " " }
