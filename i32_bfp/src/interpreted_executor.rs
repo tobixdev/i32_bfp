@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, num::Wrapping};
 
 use crate::{ast::{self, Expr}, runtime::Executor};
 
@@ -76,12 +76,17 @@ impl Interpretable for Expr {
                 };
                 ctx.run(name, arg)
             },
-            Expr::Add(a, b) => a.eval(ctx) + b.eval(ctx),
-            Expr::Sub(a, b) => a.eval(ctx) + b.eval(ctx),
-            Expr::Mul(a, b) => a.eval(ctx) * b.eval(ctx),
-            Expr::Div(a, b) => a.eval(ctx) / b.eval(ctx),
+            Expr::Add(a, b) => (Wrapping(a.eval(ctx)) + Wrapping(b.eval(ctx))).0,
+            Expr::Sub(a, b) => (Wrapping(a.eval(ctx)) - Wrapping(b.eval(ctx))).0,
+            Expr::Mul(a, b) => (Wrapping(a.eval(ctx)) * Wrapping(b.eval(ctx))).0,
+            Expr::Div(a, b) => (Wrapping(a.eval(ctx)) / Wrapping(b.eval(ctx))).0,
+            Expr::Rem(a, b) => (Wrapping(a.eval(ctx)) % Wrapping(b.eval(ctx))).0,
             Expr::Eq(a, b) => if a.eval(ctx) == b.eval(ctx) { 1 } else { 0 },
             Expr::Neq(a, b) => if a.eval(ctx) != b.eval(ctx) { 1 } else { 0 }
+            Expr::Gt(a, b) => if a.eval(ctx) > b.eval(ctx) { 1 } else { 0 },
+            Expr::Lt(a, b) => if a.eval(ctx) < b.eval(ctx) { 1 } else { 0 },
+            Expr::Gte(a, b) => if a.eval(ctx) >= b.eval(ctx) { 1 } else { 0 },
+            Expr::Lte(a, b) => if a.eval(ctx) <= b.eval(ctx) { 1 } else { 0 },
         }
     }
 }

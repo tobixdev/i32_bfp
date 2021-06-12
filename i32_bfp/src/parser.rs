@@ -75,15 +75,15 @@ fn build_ast_relation(pairs: &mut Pairs<'_, Rule>) -> Result<ast::Expr, String> 
         return build_ast_addsub(&mut lhs.into_inner());
     }
     let rhs = pairs.next().unwrap();
+    let lhs = Box::new(build_ast_addsub(&mut lhs.into_inner())?);
+    let rhs = Box::new(build_ast_relation(&mut rhs.into_inner())?);
     Ok(match op.unwrap().as_str() {
-        "=" => ast::Expr::Eq(
-            Box::new(build_ast_addsub(&mut lhs.into_inner())?),
-            Box::new(build_ast_relation(&mut rhs.into_inner())?),
-        ),
-        "<>" => ast::Expr::Neq(
-            Box::new(build_ast_addsub(&mut lhs.into_inner())?),
-            Box::new(build_ast_relation(&mut rhs.into_inner())?),
-        ),
+        "=" => ast::Expr::Eq(lhs,rhs),
+        "<>" => ast::Expr::Neq(lhs,rhs),
+        "<" => ast::Expr::Lt(lhs,rhs),
+        ">" => ast::Expr::Gt(lhs,rhs),
+        "<=" => ast::Expr::Lte(lhs,rhs),
+        ">=" => ast::Expr::Gte(lhs,rhs),
         _ => unreachable!("Operator cannot be matched in relation"),
     })
 }
@@ -118,15 +118,12 @@ fn build_ast_muldiv(pairs: &mut Pairs<'_, Rule>) -> Result<ast::Expr, String> {
     }
 
     let rhs = pairs.next().unwrap();
+    let lhs =  Box::new(build_ast_atom(&mut lhs.into_inner())?);
+    let rhs = Box::new(build_ast_muldiv(&mut rhs.into_inner())?);
     Ok(match op.unwrap().as_str() {
-        "*" => ast::Expr::Mul(
-            Box::new(build_ast_atom(&mut lhs.into_inner())?),
-            Box::new(build_ast_muldiv(&mut rhs.into_inner())?),
-        ),
-        "/" => ast::Expr::Div(
-            Box::new(build_ast_atom(&mut lhs.into_inner())?),
-            Box::new(build_ast_muldiv(&mut rhs.into_inner())?),
-        ),
+        "*" => ast::Expr::Mul(lhs, rhs),
+        "/" => ast::Expr::Div(lhs, rhs),
+        "%" => ast::Expr::Rem(lhs, rhs),
         _ => unreachable!("Operator cannot be matched in muldiv"),
     })
 }

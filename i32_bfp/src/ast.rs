@@ -4,7 +4,7 @@ use itertools::Itertools;
 pub enum Action {
     FunctionDef(FunctionDef),
     Query(Expr),
-    Command(Command)
+    Command(Command),
 }
 
 #[derive(Debug)]
@@ -14,14 +14,14 @@ pub enum Command {
     DeleteFunction(String),
     SwitchMode(String),
     SwitchExecutor(String),
-    Test(Expr)
+    Test(Expr),
 }
 
 #[derive(Debug, Clone)]
 pub struct FunctionDef {
     pub name: String,
     pub parameter: Option<String>,
-    pub body: Expr
+    pub body: Expr,
 }
 
 #[derive(Debug, Clone)]
@@ -33,8 +33,13 @@ pub enum Expr {
     Sub(Box<Expr>, Box<Expr>),
     Mul(Box<Expr>, Box<Expr>),
     Div(Box<Expr>, Box<Expr>),
+    Rem(Box<Expr>, Box<Expr>),
     Eq(Box<Expr>, Box<Expr>),
     Neq(Box<Expr>, Box<Expr>),
+    Gt(Box<Expr>, Box<Expr>),
+    Lt(Box<Expr>, Box<Expr>),
+    Gte(Box<Expr>, Box<Expr>),
+    Lte(Box<Expr>, Box<Expr>),
 }
 
 impl Expr {
@@ -47,16 +52,21 @@ impl Expr {
     fn add_used_variables(&self, mut vars: &mut Vec<String>) {
         match self {
             Expr::Number(_) => {}
-            Expr::Var(v) => { vars.push(v.clone()) }
-            Expr::Add(lhs, rhs) | 
-            Expr::Sub(lhs, rhs) | 
-            Expr::Mul(lhs, rhs) | 
-            Expr::Div(lhs, rhs) |
-            Expr::Eq(lhs, rhs) |
-            Expr::Neq(lhs, rhs) => { 
+            Expr::Var(v) => vars.push(v.clone()),
+            Expr::Add(lhs, rhs)
+            | Expr::Sub(lhs, rhs)
+            | Expr::Mul(lhs, rhs)
+            | Expr::Div(lhs, rhs)
+            | Expr::Eq(lhs, rhs)
+            | Expr::Neq(lhs, rhs)
+            | Expr::Rem(lhs, rhs)
+            | Expr::Gt(lhs, rhs)
+            | Expr::Lt(lhs, rhs)
+            | Expr::Gte(lhs, rhs)
+            | Expr::Lte(lhs, rhs) => {
                 lhs.add_used_variables(&mut vars);
                 rhs.add_used_variables(&mut vars);
-            },
+            }
             Expr::FunctionCall(_, expr) => {
                 if let Some(expr) = expr {
                     expr.add_used_variables(&mut vars)

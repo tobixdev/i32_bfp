@@ -40,7 +40,7 @@ impl CompilationContext<'_> {
     }
 
     fn free_if_possible(&mut self, reg: Rq) {
-        if ![Rq::RAX, Rq::RCX].contains(&reg) {
+        if ![Rq::RAX, Rq::RCX, Rq::RDX].contains(&reg) {
             self.available_parameter_registers.push(reg);
         }
     }
@@ -114,9 +114,14 @@ impl Compilable for Expr {
             Expr::Sub(lhs, rhs) => compile_sub(&lhs, &rhs, &mut ctx),
             Expr::Mul(lhs, rhs) => compile_mul(&lhs, &rhs, &mut ctx),
             Expr::Div(lhs, rhs) => compile_div(&lhs, &rhs, &mut ctx),
+            Expr::Rem(lhs, rhs) => compile_rem(&lhs, &rhs, &mut ctx),
             Expr::Eq(lhs, rhs) => compile_eq(&lhs, &rhs, &mut ctx),
             Expr::Neq(lhs, rhs) => compile_neq(&lhs, &rhs, &mut ctx),
-            Expr::FunctionCall(name, param) => compile_function_call(&name, &param, &mut ctx)
+            Expr::Gt(lhs, rhs) => compile_gt(&lhs, &rhs, &mut ctx),
+            Expr::Lt(lhs, rhs) => compile_lt(&lhs, &rhs, &mut ctx),
+            Expr::Gte(lhs, rhs) => compile_gte(&lhs, &rhs, &mut ctx),
+            Expr::Lte(lhs, rhs) => compile_lte(&lhs, &rhs, &mut ctx),
+            Expr::FunctionCall(name, param) => compile_function_call(&name, &param, &mut ctx),
         }
     }
 }
@@ -134,86 +139,127 @@ fn compile_var(name: &String, ctx: &mut CompilationContext) -> Result<Rq, String
     Ok(register)
 }
 
-fn compile_add(lhs: &Expr, rhs: &Expr, mut ctx: &mut CompilationContext) -> Result<Rq, String> {
-    let lhs_reg = lhs.compile(&mut ctx)?;
-    let rhs_reg = rhs.compile(&mut ctx)?;
-    let new_reg = ctx.next_register()?;
-    dynasm!(ctx.ops
-        ; mov Rq(new_reg.code()), Rq(lhs_reg.code())
-        ; add Rq(new_reg.code()), Rq(rhs_reg.code())
-    );
-    ctx.free_if_possible(lhs_reg);
-    ctx.free_if_possible(rhs_reg);
-    Ok(new_reg)
+fn compile_add(lhs: &Expr, rhs: &Expr, ctx: &mut CompilationContext) -> Result<Rq, String> {
+    compile_op(lhs, rhs, ctx, |lhs_reg, rhs_reg, new_reg, ctx| {
+        dynasm!(ctx.ops
+            ; mov Rq(new_reg.code()), Rq(lhs_reg.code())
+            ; add Rq(new_reg.code()), Rq(rhs_reg.code())
+        );
+    })
 }
 
-fn compile_sub(lhs: &Expr, rhs: &Expr, mut ctx: &mut CompilationContext) -> Result<Rq, String> {
-    let lhs_reg = lhs.compile(&mut ctx)?;
-    let rhs_reg = rhs.compile(&mut ctx)?;
-    let new_reg = ctx.next_register()?;
-    dynasm!(ctx.ops
-        ; mov Rq(new_reg.code()), Rq(lhs_reg.code())
-        ; sub Rq(new_reg.code()), Rq(rhs_reg.code())
-    );
-    ctx.free_if_possible(lhs_reg);
-    ctx.free_if_possible(rhs_reg);
-    Ok(new_reg)
+fn compile_sub(lhs: &Expr, rhs: &Expr, ctx: &mut CompilationContext) -> Result<Rq, String> {
+    compile_op(lhs, rhs, ctx, |lhs_reg, rhs_reg, new_reg, ctx| {
+        dynasm!(ctx.ops
+            ; mov Rq(new_reg.code()), Rq(lhs_reg.code())
+            ; sub Rq(new_reg.code()), Rq(rhs_reg.code())
+        );
+    })
 }
 
-fn compile_mul(lhs: &Expr, rhs: &Expr, mut ctx: &mut CompilationContext) -> Result<Rq, String> {
-    let lhs_reg = lhs.compile(&mut ctx)?;
-    let rhs_reg = rhs.compile(&mut ctx)?;
-    let new_reg = ctx.next_register()?;
-    dynasm!(ctx.ops
-        ; mov eax, Rd(lhs_reg.code())
-        ; mul Rd(rhs_reg.code())
-        ; mov Rd(new_reg.code()), eax
-    );
-    ctx.free_if_possible(lhs_reg);
-    ctx.free_if_possible(rhs_reg);
-    Ok(new_reg)
+fn compile_mul(lhs: &Expr, rhs: &Expr, ctx: &mut CompilationContext) -> Result<Rq, String> {
+    compile_op(lhs, rhs, ctx, |lhs_reg, rhs_reg, new_reg, ctx| {
+        dynasm!(ctx.ops
+            ; mov eax, Rd(lhs_reg.code())
+            ; mul Rd(rhs_reg.code())
+            ; mov Rd(new_reg.code()), eax
+        );
+    })
 }
 
-fn compile_div(lhs: &Expr, rhs: &Expr, mut ctx: &mut CompilationContext) -> Result<Rq, String> {
-    let lhs_reg = lhs.compile(&mut ctx)?;
-    let rhs_reg = rhs.compile(&mut ctx)?;
-    let new_reg = ctx.next_register()?;
-    dynasm!(ctx.ops
-        ; mov edx, 0
-        ; mov eax, Rd(lhs_reg.code())
-        ; div Rd(rhs_reg.code())
-        ; mov Rd(new_reg.code()), eax
-    );
-    ctx.free_if_possible(lhs_reg);
-    ctx.free_if_possible(rhs_reg);
-    Ok(new_reg)
+fn compile_div(lhs: &Expr, rhs: &Expr, ctx: &mut CompilationContext) -> Result<Rq, String> {
+    compile_op(lhs, rhs, ctx, |lhs_reg, rhs_reg, new_reg, ctx| {
+        dynasm!(ctx.ops
+            ; mov eax, Rd(lhs_reg.code())
+            ; cdq
+            ; idiv Rd(rhs_reg.code())
+            ; mov Rd(new_reg.code()), eax
+        );
+    })
 }
 
-fn compile_eq(lhs: &Expr, rhs: &Expr, mut ctx: &mut CompilationContext) -> Result<Rq, String> {
-    let lhs_reg = lhs.compile(&mut ctx)?;
-    let rhs_reg = rhs.compile(&mut ctx)?;
-    let new_reg = ctx.next_register()?;
-    dynasm!(ctx.ops
-        ; mov eax, 0
-        ; cmp Rd(lhs_reg.code()), Rd(rhs_reg.code())
-        ; sete al
-        ; mov Rd(new_reg.code()), eax
-    );
-    ctx.free_if_possible(lhs_reg);
-    ctx.free_if_possible(rhs_reg);
-    Ok(new_reg)
+fn compile_rem(lhs: &Expr, rhs: &Expr, ctx: &mut CompilationContext) -> Result<Rq, String> {
+    compile_op(lhs, rhs, ctx, |lhs_reg, rhs_reg, new_reg, ctx| {
+        dynasm!(ctx.ops
+            ; mov eax, Rd(lhs_reg.code())
+            ; cdq
+            ; idiv Rd(rhs_reg.code())
+            ; mov Rd(new_reg.code()), edx
+        );
+    })
 }
 
-fn compile_neq(lhs: &Expr, rhs: &Expr, mut ctx: &mut CompilationContext) -> Result<Rq, String> {
-    let lhs_reg = lhs.compile(&mut ctx)?;
-    let rhs_reg = rhs.compile(&mut ctx)?;
-    let new_reg = ctx.next_register()?;
-    dynasm!(ctx.ops
+fn compile_eq(lhs: &Expr, rhs: &Expr, ctx: &mut CompilationContext) -> Result<Rq, String> {
+    compile_op(lhs, rhs, ctx, |lhs_reg, rhs_reg, new_reg, ctx| {
+        dynasm!(ctx.ops
+            ; mov eax, 0
+            ; cmp Rd(lhs_reg.code()), Rd(rhs_reg.code())
+            ; sete al
+            ; mov Rd(new_reg.code()), eax
+        );
+    })
+}
+
+fn compile_neq(lhs: &Expr, rhs: &Expr, ctx: &mut CompilationContext) -> Result<Rq, String> {
+    compile_op(lhs, rhs, ctx, |lhs_reg, rhs_reg, new_reg, ctx| {
+        dynasm!(ctx.ops
         ; mov eax, 0
         ; cmp Rd(lhs_reg.code()), Rd(rhs_reg.code())
         ; setne al
         ; mov Rd(new_reg.code()), eax
-    );
+        );
+    })
+}
+
+fn compile_gt(lhs: &Expr, rhs: &Expr, ctx: &mut CompilationContext) -> Result<Rq, String> {
+    compile_op(lhs, rhs, ctx, |lhs_reg, rhs_reg, new_reg, ctx| {
+        dynasm!(ctx.ops
+            ; mov eax, 0
+            ; cmp Rd(lhs_reg.code()), Rd(rhs_reg.code())
+            ; setg al
+            ; mov Rd(new_reg.code()), eax
+        );
+    })
+}
+
+fn compile_lt(lhs: &Expr, rhs: &Expr, ctx: &mut CompilationContext) -> Result<Rq, String> {
+    compile_op(lhs, rhs, ctx, |lhs_reg, rhs_reg, new_reg, ctx| {
+        dynasm!(ctx.ops
+            ; mov eax, 0
+            ; cmp Rd(lhs_reg.code()), Rd(rhs_reg.code())
+            ; setl al
+            ; mov Rd(new_reg.code()), eax
+        );
+    })
+}
+
+fn compile_gte(lhs: &Expr, rhs: &Expr, ctx: &mut CompilationContext) -> Result<Rq, String> {
+    compile_op(lhs, rhs, ctx, |lhs_reg, rhs_reg, new_reg, ctx| {
+        dynasm!(ctx.ops
+            ; mov eax, 0
+            ; cmp Rd(lhs_reg.code()), Rd(rhs_reg.code())
+            ; setge al
+            ; mov Rd(new_reg.code()), eax
+        );
+    })
+}
+
+fn compile_lte(lhs: &Expr, rhs: &Expr, ctx: &mut CompilationContext) -> Result<Rq, String> {
+    compile_op(lhs, rhs, ctx, |lhs_reg, rhs_reg, new_reg, ctx| {
+        dynasm!(ctx.ops
+            ; mov eax, 0
+            ; cmp Rd(lhs_reg.code()), Rd(rhs_reg.code())
+            ; setle al
+            ; mov Rd(new_reg.code()), eax
+        );
+    })
+}
+
+fn compile_op(lhs: &Expr, rhs: &Expr, mut ctx: &mut CompilationContext, gen: fn(Rq, Rq, Rq, &mut CompilationContext) -> ()) -> Result<Rq, String> {
+    let lhs_reg = lhs.compile(&mut ctx)?;
+    let rhs_reg = rhs.compile(&mut ctx)?;
+    let new_reg = ctx.next_register()?;
+    gen(lhs_reg, rhs_reg, new_reg, ctx);
     ctx.free_if_possible(lhs_reg);
     ctx.free_if_possible(rhs_reg);
     Ok(new_reg)

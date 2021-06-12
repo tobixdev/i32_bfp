@@ -15,11 +15,11 @@ test_command = { ".test" ~ expr }
 expr = { relation }
 
 relation = {addsub ~ (relator ~ relation)? }
-relator = { "=" | "<>" }
+relator = { ">=" | "<=" | "=" | "<>" | ">" | "<" }
 addsub = { muldiv ~ (addsub_op ~ addsub)?  }
 addsub_op = { "+" | "-" }
 muldiv = { atom ~ (muldiv_op ~ muldiv)? }
-muldiv_op = { "*" | "/" }
+muldiv_op = { "*" | "/" | "%" }
 atom = {
     "(" ~ expr ~ ")" |
     NUMBER |
