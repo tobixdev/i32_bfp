@@ -11,6 +11,7 @@ mode = { "proof" | "fast" }
 executor_command = { ".executor" ~ executor }
 executor = { "compiled" | "interpreted" }
 test_command = { ".test" ~ expr }
+benchmark_command = { ".benchmark" }
 
 expr = { relation }
 

@@ -1,4 +1,6 @@
-use crate::ast::Expr;
+use std::time;
+
+use crate::ast::{Expr};
 use crate::compiled_executor::CompiledExecutor;
 use crate::interpreted_executor::InterpretedExecutor;
 use crate::parser::parse;
@@ -67,6 +69,10 @@ impl Runtime {
             println!("ERROR>\n{}", error);
         }
     }
+
+    fn handle_str(&mut self, str: &str) -> Result<(), String> {
+        self.handle_ast(parse(str)?)
+    }
     
     fn handle_ast(&mut self, ast: ast::Action) -> Result<(), String> {
         match ast {
@@ -88,7 +94,8 @@ impl Runtime {
                 self.used_executor = ExecutorType::from(&executor);
                 println!("Switched executor to {:?}", self.used_executor);
             },
-            ast::Action::Command(ast::Command::Test(expr)) => self.test_expr(&expr)?
+            ast::Action::Command(ast::Command::Test(expr)) => self.test_expr(&expr)?,
+            ast::Action::Command(ast::Command::Benchmark) => self.benchmark()?
         }
         Ok(())
     }
@@ -133,6 +140,35 @@ impl Runtime {
             }
         }
         println!("Test OK");
+        Ok(())
+    }
+
+    fn benchmark(&mut self) -> Result<(), String> {
+        self.handle_str(".mode proof")?;
+        self.execute_benchmark("Simple", "x <> x + 1")?;
+        self.execute_benchmark("Complex", "(x + 1) % 2 <> x % 2")?;
+        self.handle_str("f(x) := x * 2")?;
+        self.execute_benchmark("Function Call", "x * 2 = f(x)")?;
+        Ok(())
+    }
+
+    fn execute_benchmark(&mut self, name: &str, expression: &str) -> Result<(), String> {
+        let expr = parse(expression)?;
+        if let ast::Action::Query(query) = expr {
+            self.handle_str(".executor compiled")?;
+            let start = time::SystemTime::now();
+            self.execute_query(query.clone())?;
+            let expired = start.elapsed().unwrap().as_millis();
+            println!("Benchmark '{}' took {} ms in compiled mode.", name, expired);
+
+            self.handle_str(".executor interpreted")?;
+            let start = time::SystemTime::now();
+            self.execute_query(query)?;
+            let expired = start.elapsed().unwrap().as_millis();
+            println!("Benchmark '{}' took {} ms in interpreted mode.", name, expired);
+        } else {
+            println!("expression is not a query");
+        }
         Ok(())
     }
 

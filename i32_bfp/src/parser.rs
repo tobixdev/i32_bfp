@@ -157,6 +157,7 @@ fn build_ast_command(pairs: &mut Pairs<'_, Rule>) -> Result<ast::Command, String
         Rule::mode_command => ast::Command::SwitchMode(rule.into_inner().next().unwrap().as_str().to_string()),
         Rule::executor_command => ast::Command::SwitchExecutor(rule.into_inner().next().unwrap().as_str().to_string()),
         Rule::test_command => ast::Command::Test(build_ast_expr(&mut rule.into_inner().next().unwrap().into_inner())?),
+        Rule::benchmark_command => ast::Command::Benchmark,
         _ => unreachable!("Rule cannot be matched in command"),
     })
 }

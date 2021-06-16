@@ -100,7 +100,49 @@ mod tests {
         check_equiv("x <= 1", vec![i32::MIN, -1, 0, 1, i32::MAX])
     }
 
+    #[test]
+    fn function_call_is_compiled_correctly_1() {
+        let mut compiled_executor = CompiledExecutor::new();
+        let mut interpreted_executor = InterpretedExecutor::new();
+        handle_fn_def("f(x) := x + 1", &mut compiled_executor, &mut interpreted_executor);
+        check_query_equiv("f(1) = 2", vec![0], &mut compiled_executor, &mut interpreted_executor);
+    }
+
+    #[test]
+    fn function_call_is_compiled_correctly_2() {
+        let mut compiled_executor = CompiledExecutor::new();
+        let mut interpreted_executor = InterpretedExecutor::new();
+        handle_fn_def("f(x) := x + 1", &mut compiled_executor, &mut interpreted_executor);
+        handle_fn_def("g(x) := f(x) / 2", &mut compiled_executor, &mut interpreted_executor);
+        check_query_equiv("f(x) > g(x)", vec![i32::MIN, -1, 0, 1, i32::MAX], &mut compiled_executor, &mut interpreted_executor);
+    }
+
+    #[test]
+    fn function_call_encountered_bug_1() {
+        let mut compiled_executor = CompiledExecutor::new();
+        let mut interpreted_executor = InterpretedExecutor::new();
+        handle_fn_def("f(x) := x + 1", &mut compiled_executor, &mut interpreted_executor);
+        check_query_equiv("f(x) > x", vec![1189796073], &mut compiled_executor, &mut interpreted_executor);
+    }
+
     fn check_equiv(expr: &str, test_for: Vec<i32>) {
+        let mut compiled_executor = CompiledExecutor::new();
+        let mut interpreted_executor = InterpretedExecutor::new();
+        check_query_equiv(expr, test_for, &mut compiled_executor, &mut interpreted_executor)
+    }
+
+    fn handle_fn_def(expr: &str, compiled_executor: &mut CompiledExecutor, interpreted_executor: &mut InterpretedExecutor) {
+        let parsed = parse(expr).unwrap();
+
+        let defintion = match parsed {
+            crate::ast::Action::FunctionDef(defintion) => defintion,
+            _ => panic!("Expected query")
+        };
+        compiled_executor.handle_function_def(defintion.clone()).unwrap();
+        interpreted_executor.handle_function_def(defintion).unwrap();
+    }
+
+    fn check_query_equiv(expr: &str, test_for: Vec<i32>, compiled_executor: &mut CompiledExecutor, interpreted_executor: &mut InterpretedExecutor) {
         let parsed = parse(expr).unwrap();
 
         let expr = match parsed {
@@ -108,8 +150,6 @@ mod tests {
             _ => panic!("Expected query")
         };
 
-        let mut compiled_executor = CompiledExecutor::new();
-        let mut interpreted_executor = InterpretedExecutor::new();
         let compiled = compiled_executor.get_query_runable(expr.clone()).unwrap();
         let interpreted = interpreted_executor.get_query_runable(expr).unwrap();
         for val in test_for {

@@ -6,13 +6,12 @@ use dynasmrt::{Assembler, AssemblyOffset, ExecutableBuffer, Register, x64::{X64R
 use dynasmrt::{dynasm, DynasmApi, DynasmLabelApi};
 use crate::ast::Expr;
 use crate::code_repository::CodeRepository;
-
 pub struct CompilationContext<'a> {
     ops: Assembler<X64Relocation>,
     available_registers: Vec<Rq>,
     available_parameter_registers: Vec<Rq>,
     var: HashMap<String, Rq>,
-    code_repository: &'a CodeRepository
+    code_repository: &'a CodeRepository,
 }
 
 impl CompilationContext<'_> {
@@ -22,7 +21,7 @@ impl CompilationContext<'_> {
             available_registers: vec![Rq::RBX, Rq::R8, Rq::R9, Rq::R10, Rq::R11, Rq::R12, Rq::R13, Rq::R14, Rq::R15],
             available_parameter_registers: vec![Rq::RCX],
             var: HashMap::new(),
-            code_repository: code_repository
+            code_repository: code_repository,
         }
     }
 
@@ -87,7 +86,8 @@ impl Runable {
 
     pub fn call(&self, arg1: i32) -> i32 {
         let expr_fn: extern "win64" fn(i32) -> i32 = unsafe { mem::transmute(self.buf.ptr(self.offset)) };
-        expr_fn(arg1)
+        let res = expr_fn(arg1);
+        res
     }
 
     pub fn print(&self) {
@@ -269,21 +269,30 @@ fn compile_function_call(name: &String, param: &Option<Box<Expr>>, mut ctx: &mut
     let arg = param.as_ref().map(|e| e.compile(&mut ctx));
     let new_reg = ctx.next_register()?;
     let code_repo_ptr = ctx.code_repository as *const CodeRepository;
+    let code_label = ctx.ops.new_dynamic_label();
+    let fn_name_label = ctx.ops.new_dynamic_label();
     dynasm!(ctx.ops
-        ; lea rax, [->code]
+        ; lea rax, [=>code_label]
         ; jmp rax
-        ; ->fn_name:
+        ; =>fn_name_label
         ; .bytes name.as_bytes()
-        ; ->code:
-        ; lea rdx, [->fn_name]
+        ; =>code_label
+        ; lea rdx, [=>fn_name_label]
         ; push rcx
         ; push r8
         ; push r9
         ; push r10
         ; push r11
         ; mov rcx, QWORD code_repo_ptr as i64
-        ; mov r8, QWORD name.len() as _
-        ; mov r9, Rq(new_reg.code())
+        ; mov r8, QWORD name.len() as _);
+    if let Some(arg_reg) = arg {
+        let arg_reg = arg_reg?;
+        dynasm!(ctx.ops
+            ; mov r9, Rq(arg_reg.code())
+        );
+        ctx.free_if_possible(arg_reg);
+    }
+    dynasm!(ctx.ops
         ; mov rax, QWORD call_function as _ 
         ; sub rsp, BYTE 0x28
         ; call rax
@@ -293,11 +302,8 @@ fn compile_function_call(name: &String, param: &Option<Box<Expr>>, mut ctx: &mut
         ; pop r9
         ; pop r8
         ; pop rcx
-        ; mov Rd(new_reg.code()), eax
+        ; mov Rq(new_reg.code()), rax
     );
-    if let Some(arg_reg) = arg {
-        ctx.free_if_possible(arg_reg?);
-    }
     Ok(new_reg)
 }
 

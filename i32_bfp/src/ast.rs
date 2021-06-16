@@ -15,6 +15,7 @@ pub enum Command {
     SwitchMode(String),
     SwitchExecutor(String),
     Test(Expr),
+    Benchmark
 }
 
 #[derive(Debug, Clone)]
