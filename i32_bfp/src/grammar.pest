@@ -2,12 +2,12 @@ action = { SOI ~ (function_def | query | command) ~ EOI }
 
 function_def = { ID ~ "(" ~ ID? ~ ")" ~ ":=" ~ expr }
 query = { expr }
-command = { show_code_command | list_fn_command | delete_fn_command | mode_command | executor_command | test_command }
+command = { show_code_command | list_fn_command | delete_fn_command | mode_command | executor_command | test_command | benchmark_command }
 show_code_command = { ".code" ~ ID }
 list_fn_command = { ".list" }
 delete_fn_command = { ".delete" ~ ID }
 mode_command = { ".mode" ~ mode }
-mode = { "proof" | "fast" }
+mode = { "proof" | "fast" | "benchmark" }
 executor_command = { ".executor" ~ executor }
 executor = { "compiled" | "interpreted" }
 test_command = { ".test" ~ expr }

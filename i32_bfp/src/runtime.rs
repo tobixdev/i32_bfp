@@ -9,7 +9,7 @@ use crate::ast;
 #[derive(Debug)]
 enum ExecutorType {
     Compiled,
-    Interpreted
+    Interpreted,
 }
 
 impl ExecutorType {
@@ -25,7 +25,8 @@ impl ExecutorType {
 #[derive(Debug)]
 enum ExeuctionMode {
     Proof,
-    Fast
+    Fast,
+    Benchmark
 }
 
 impl ExeuctionMode {
@@ -33,7 +34,15 @@ impl ExeuctionMode {
         match value {
             "proof" => ExeuctionMode::Proof,
             "fast" => ExeuctionMode::Fast,
+            "benchmark" => ExeuctionMode::Benchmark,
             _ => panic!("Invalid exeuction mode!")
+        }
+    }
+
+    fn should_print_info(&self) -> bool {
+        match self {
+            ExeuctionMode::Benchmark => false,
+            _ => true
         }
     }
 }
@@ -113,7 +122,7 @@ impl Runtime {
         println!("Using {:?} executor...", self.used_executor);
         println!("{} loops remaining...", to_check);
         for i in first_var_range {
-            if to_check % 100_000_000 == 0 {
+            if to_check % 100_000_000 == 0 && self.mode.should_print_info()  {
                 println!("{} loops remaining...", to_check)
             }
             let result = runable(i);
@@ -144,7 +153,7 @@ impl Runtime {
     }
 
     fn benchmark(&mut self) -> Result<(), String> {
-        self.handle_str(".mode proof")?;
+        self.handle_str(".mode benchmark")?;
         self.execute_benchmark("Simple", "x <> x + 1")?;
         self.execute_benchmark("Complex", "(x + 1) % 2 <> x % 2")?;
         self.handle_str("f(x) := x * 2")?;
@@ -159,13 +168,13 @@ impl Runtime {
             let start = time::SystemTime::now();
             self.execute_query(query.clone())?;
             let expired = start.elapsed().unwrap().as_millis();
-            println!("Benchmark '{}' took {} ms in compiled mode.", name, expired);
+            println!("Benchmark '{}' took {} ms for 10.000.000 iterations in compiled mode.", name, expired);
 
             self.handle_str(".executor interpreted")?;
             let start = time::SystemTime::now();
             self.execute_query(query)?;
             let expired = start.elapsed().unwrap().as_millis();
-            println!("Benchmark '{}' took {} ms in interpreted mode.", name, expired);
+            println!("Benchmark '{}' took {} ms for 10.000.000 iterations in interpreted mode.", name, expired);
         } else {
             println!("expression is not a query");
         }
@@ -179,7 +188,8 @@ impl Runtime {
 
         match self.mode {
             ExeuctionMode::Proof => (Box::new(i32::MIN..=i32::MAX), (i32::MAX as usize) + 1 + -(i32::MIN as i64) as usize),
-            ExeuctionMode::Fast => (Box::new(vec![i32::MIN, -1, 0, 1, i32::MAX].into_iter()), 5)
+            ExeuctionMode::Fast => (Box::new(vec![i32::MIN, -1, 0, 1, i32::MAX].into_iter()), 5),
+            ExeuctionMode::Benchmark => (Box::new(-5_000_000..5_000_000), 10_000_000),
         }
     }
 }

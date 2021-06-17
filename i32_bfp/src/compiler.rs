@@ -282,9 +282,7 @@ fn compile_function_call(name: &String, param: &Option<Box<Expr>>, mut ctx: &mut
         ; push r8
         ; push r9
         ; push r10
-        ; push r11
-        ; mov rcx, QWORD code_repo_ptr as i64
-        ; mov r8, QWORD name.len() as _);
+        ; push r11);
     if let Some(arg_reg) = arg {
         let arg_reg = arg_reg?;
         dynasm!(ctx.ops
@@ -293,6 +291,8 @@ fn compile_function_call(name: &String, param: &Option<Box<Expr>>, mut ctx: &mut
         ctx.free_if_possible(arg_reg);
     }
     dynasm!(ctx.ops
+        ; mov rcx, QWORD code_repo_ptr as i64
+        ; mov r8, QWORD name.len() as _
         ; mov rax, QWORD call_function as _ 
         ; sub rsp, BYTE 0x28
         ; call rax
