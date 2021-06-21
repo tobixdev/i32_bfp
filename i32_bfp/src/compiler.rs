@@ -271,6 +271,9 @@ fn compile_function_call(name: &String, param: &Option<Box<Expr>>, mut ctx: &mut
     let code_repo_ptr = ctx.code_repository as *const CodeRepository;
     let code_label = ctx.ops.new_dynamic_label();
     let fn_name_label = ctx.ops.new_dynamic_label();
+
+    // Don't look at it ༼ つ ◕_◕ ༽つ
+
     dynasm!(ctx.ops
         ; lea rax, [=>code_label]
         ; jmp rax
